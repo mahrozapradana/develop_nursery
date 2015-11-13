@@ -22,10 +22,11 @@ class Selection(models.Model):
     stage_id = fields.Many2one('estate.nursery.stage',"Stage")
     selectionstage_id = fields.Many2one('estate.nursery.selectionstage',"Selection Stage",
                                         required=True)
-    qty_normal = fields.Integer("Normal Seed Quantity",)
+    qty_normal = fields.Integer("Normal Seed Quantity",compute="_compute_plannormal",store=True)
     qty_abnormal = fields.Integer("Abnormal Seed Quantity",compute='_compute_total')
     date_plant = fields.Date("Planted Date",required=False,readonly=True,related='batch_id.date_planted',store=True)
-    qty_plant = fields.Integer("Planted Quantity",required=False,readonly=True,related='batch_id.qty_planted',store=True)
+    qty_plant = fields.Integer("Planted Quantity",compute="_compute_plannormal",store=True)
+    qty_plante = fields.Integer("plan qty",related="batch_id.qty_planted",store=True)
     qty_batch = fields.Integer("DO Quantity",required=False,readonly=True,related='batch_id.qty_received',store=True)
     presentage_normal = fields.Float("Persentage Normal",digits=(2,2),required=False)
     presentage_abnormal = fields.Float("Persentage Abnormal",digits=(2,2), required=False)
@@ -88,7 +89,8 @@ class Selection(models.Model):
         for item in selectionlineids:
             normal -= abnormal
             abnormal += abnormal
-        self.write({'qty_abnormal': self.qty_abnormal, 'qty_normal' : self.qty_normal ,})
+        self.write({'qty_abnormal': self.qty_abnormal, 'qty_normal' : self.qty_normal ,'qty_plant' : self.qty_plant})
+
         self.action_move()
         return True
     @api.one
@@ -114,19 +116,83 @@ class Selection(models.Model):
             move.action_done()
         return True
 
+    # #get_value_qty_planted
+    # @api.one
+    # def _get_value(self):
+    #      for record in self:
+    #          with open(record.batch_id.qty_planted) as f:
+    #              record.qty_plant = f.read()
+    #
+    # #set_value_qty_planted
+    # @api.one
+    # def _set_value(self):
+    #      for record in self:
+    #          if not record.document: continue
+    #          with open(record.batch_id.qty_planted()) as f:
+    #                  f.write(record.qty_plant)
+
+    # #get value
+    # def _get_value_qty_planted(self, cr, uid, ids, field_name, arg, context=None):
+    #     res = {}
+    #     for obj in self.browse(cr, uid, ids, context=context):
+    #         if obj.batch_id.qty_planted:
+    #             res[obj.id] = obj.qty_plant
+    #         else:
+    #             res[obj.id] = 'Not Specified'
+    #     # as alternative to the if-clause one could write: res[obj.id] = obj.patient_id.ssn or 'Not Specified';
+    #     return res
+
+
+
     #compute qtyplant :
     @api.one
-    @api.depends('batch_id')
+    @api.depends('qty_plant','qty_abnormal','batch_id','qty_plante')
     def _compute_plannormal(self):
-        for a in self.batch_id:
-            qty_planted = 0
-            src = self.env['estate.nursery.batch'].search([('qty_planted', '=', self.qty_planted)])
+        abn = self.qty_abnormal
+        nrml = self.qty_normal
+        plante = int(self.qty_plante)
 
-            for a in src:
-                qty_planted -=  a.qty_plant
+        # for a in self.batch_id:
+        #     qty_planted = 0
+        #     src = self.env['estate.nursery.batch'].search([('qty_planted', '=', True)])
+        # for qtyplanted in self.batch_id:
+        #     qty_planted = 0
+        #     src = self.env['estate.nursery.batch'].search([('qty_planted', '=', qtyplanted.id),
+        #                                                    ])
 
-            if qty_planted:
-                self.qty_plant
+        if self.qty_abnormal and self.qty_plante:
+                rsult = plante - self.qty_abnormal
+                self.qty_normal = rsult
+                self.qty_plant = rsult
+                print self.qty_normal
+        if self.qty_plant  > 0 :
+                rsult = self.qty_plant - self.qty_abnormal
+                self.qty_normal = rsult
+                self.qty_plant = rsult
+
+        return True
+
+
+
+
+
+
+        # calculate = self.pool.get('estate.nursery.batch')
+        # qty_planted = values['batch_id']
+        #
+        # if self.qty_abnormal:
+        #     rsult = self.qty_plan - self.qty_abnormal
+        #     self.qty_normal = rsult
+        #
+        #     calculate.write(self.batch_id,
+        #                        {'qty_planted': values['qty_normal'],}
+        #                        )
+        # return super(Selection, self)._compute_plannormal
+            # for a in src:
+            #     qty_planted -=  a.qty_plant
+            #
+            # if qty_planted:
+            #     self.qty_plant
 
     #compute selectionLine
     @api.one
@@ -156,12 +222,14 @@ class Selection(models.Model):
     def calculatedays(self):
         res={}
         fmt = '%Y-%m-%d'
-        if self.date_plant and self.selection_date:
+        if self.date_plant and self.selection_date :
             from_date = self.date_plant
             to_date = self.selection_date
             conv_fromdate = datetime.strptime(str(from_date), fmt)
-            conv_todate = datetime.strptime(str(to_date), fmt)
-            hasil= str((conv_todate-conv_fromdate).days)
+            conv_todate = datetime.strptime(str(to_date),fmt)
+            d1= conv_fromdate
+            d2= conv_todate
+            hasil= str((d2-d1).days)
             self.nursery_lapseday = hasil
         return res
 
@@ -180,21 +248,22 @@ class Selection(models.Model):
             d2 = conv_todate.month
             rangeyear = conv_todate.year
             rangeyear1 = conv_fromdate.year
-            hasil = rangeyear - rangeyear1
-            total = hasil * 12
-            self.nursery_lapsemonth = (d2 + total) - d1
+            rsult = rangeyear - rangeyear1
+            yearresult = rsult * 12
+            self.nursery_lapsemonth = (d2 + yearresult) - d1
 
         return res
 
     #compute planning date
     @api.one
-    @api.depends('date_plant','nursery_plandate','selec')
+    @api.depends('date_plant','nursery_plandate','selec','selectionstage_id')
     def calculateplandate(self):
 
          fmt = '%Y-%m-%d'
+
          a = self.selec
          b = int(a)
-         if self.date_plant and self.selectionstage_id:
+         if self.selectionstage_id and self.date_plant :
              from_date = self.date_plant
              d1=datetime.strptime(str(from_date),fmt)
              date_after_month = datetime.date(d1)+ relativedelta(months=b)
@@ -204,7 +273,7 @@ class Selection(models.Model):
 
     #compute planning max date
     @api.one
-    @api.depends('date_plant','nursery_plandate','maxa')
+    @api.depends('date_plant','nursery_plandate','maxa','selectionstage_id')
     def calculateplandatemax(self):
 
          fmt = '%Y-%m-%d'
@@ -220,7 +289,7 @@ class Selection(models.Model):
 
     #compute planning min date
     @api.one
-    @api.depends('date_plant','nursery_plandate','mina')
+    @api.depends('date_plant','nursery_plandate','mina','selectionstage_id')
     def calculateplandatemin(self):
 
          fmt = '%Y-%m-%d'
@@ -242,7 +311,7 @@ class Selection(models.Model):
 
          fmt = '%Y-%m-%d'
 
-         if self.selectionstage_id and self.selection_date:
+         if  self.selection_date:
              fromdt = self.selection_date
              plan = self.nursery_plandate
              planmax = self.nursery_plandatemax
@@ -338,16 +407,13 @@ class SelectionLine(models.Model):
     _name = 'estate.nursery.selectionline'
 
     qty = fields.Integer("Quantity Abnormal")
-    qty_batch = fields.Integer("DO Quantity",required=False,readonly=True,related='selection_id.qty_batch',store=True)
-    qty_plant = fields.Integer("Plant Quantity",required=False,readonly=True,related='selection_id.qty_plant',store=True)
     qty_abnormal = fields.Integer("Abnormal Quantity",required=False,
                                   readonly=True,related='selection_id.qty_abnormal',store=True)
+    qty_batch = fields.Integer("DO Quantity",required=False,readonly=True,related='selection_id.qty_batch',store=True)
+    # qty_plant = fields.Integer("Plant Quantity",required=False,readonly=True,related='selection_id.qty_plant',store=True)
     cause_id = fields.Many2one("estate.nursery.cause",string="Cause")
     comment = fields.Text("Additional Information")
     selection_id = fields.Many2one('estate.nursery.selection',"Selection",readonly=True)
-    # lot_id = fields.Many2one('stock.production.lot', "Lot",required=True, ondelete="restrict",
-    #                          domain=[('product_id.seed','=',True)],related="selection_id.lot_id",readonly=True)
-    # product_id = fields.Many2one('product.product', "Product", related="selection_id.product_id",readonly=True)
     location_id = fields.Many2one('stock.location', "Bedengan",
                                   domain=[('estate_location', '=', True),
                                           ('estate_location_level', '=', '3'),
