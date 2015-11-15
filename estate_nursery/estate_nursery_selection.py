@@ -26,7 +26,7 @@ class Selection(models.Model):
     qty_abnormal = fields.Integer("Abnormal Seed Quantity",compute='_compute_total')
     date_plant = fields.Date("Planted Date",required=False,readonly=True,related='batch_id.date_planted',store=True)
     qty_plant = fields.Integer("Planted Quantity",compute="_compute_plannormal",store=True)
-    qty_plante = fields.Integer("plan qty",related="batch_id.qty_planted",store=True)
+    qty_plante = fields.Integer("plan qty")
     qty_batch = fields.Integer("DO Quantity",required=False,readonly=True,related='batch_id.qty_received',store=True)
     presentage_normal = fields.Float("Persentage Normal",digits=(2,2),required=False)
     presentage_abnormal = fields.Float("Persentage Abnormal",digits=(2,2), required=False)
@@ -84,11 +84,10 @@ class Selection(models.Model):
     def action_receive(self):
         normal = self.qty_normal
         abnormal = self.qty_abnormal
-        plant = self.qty_plant
         selectionlineids = self.selectionline_ids
         for item in selectionlineids:
-            normal -= abnormal
-            abnormal += abnormal
+            # normal += abnormal
+            abnormal += item.qty
         self.write({'qty_abnormal': self.qty_abnormal, 'qty_normal' : self.qty_normal ,'qty_plant' : self.qty_plant})
 
         self.action_move()
@@ -116,83 +115,32 @@ class Selection(models.Model):
             move.action_done()
         return True
 
-    # #get_value_qty_planted
-    # @api.one
-    # def _get_value(self):
-    #      for record in self:
-    #          with open(record.batch_id.qty_planted) as f:
-    #              record.qty_plant = f.read()
-    #
-    # #set_value_qty_planted
-    # @api.one
-    # def _set_value(self):
-    #      for record in self:
-    #          if not record.document: continue
-    #          with open(record.batch_id.qty_planted()) as f:
-    #                  f.write(record.qty_plant)
-
-    # #get value
-    # def _get_value_qty_planted(self, cr, uid, ids, field_name, arg, context=None):
-    #     res = {}
-    #     for obj in self.browse(cr, uid, ids, context=context):
-    #         if obj.batch_id.qty_planted:
-    #             res[obj.id] = obj.qty_plant
-    #         else:
-    #             res[obj.id] = 'Not Specified'
-    #     # as alternative to the if-clause one could write: res[obj.id] = obj.patient_id.ssn or 'Not Specified';
-    #     return res
+    @api.one
+    @api.depends('batch_id','selectionline_ids')
+    def _temp(self):
+        if self.selectionline_ids:
+            a = self.batch_id.qty_planted - self.qty_plant
 
 
 
     #compute qtyplant :
     @api.one
-    @api.depends('qty_plant','qty_abnormal','batch_id','qty_plante')
+    @api.depends('qty_plant','qty_abnormal','batch_id','qty_plante','selectionline_ids')
     def _compute_plannormal(self):
         abn = self.qty_abnormal
         nrml = self.qty_normal
         plante = int(self.qty_plante)
-
-        # for a in self.batch_id:
-        #     qty_planted = 0
-        #     src = self.env['estate.nursery.batch'].search([('qty_planted', '=', True)])
-        # for qtyplanted in self.batch_id:
-        #     qty_planted = 0
-        #     src = self.env['estate.nursery.batch'].search([('qty_planted', '=', qtyplanted.id),
-        #                                                    ])
-
-        if self.qty_abnormal and self.qty_plante:
-                rsult = plante - self.qty_abnormal
-                self.qty_normal = rsult
-                self.qty_plant = rsult
-                print self.qty_normal
-        if self.qty_plant  > 0 :
-                rsult = self.qty_plant - self.qty_abnormal
-                self.qty_normal = rsult
-                self.qty_plant = rsult
-
-        return True
-
-
-
-
-
-
-        # calculate = self.pool.get('estate.nursery.batch')
-        # qty_planted = values['batch_id']
-        #
-        # if self.qty_abnormal:
-        #     rsult = self.qty_plan - self.qty_abnormal
-        #     self.qty_normal = rsult
-        #
-        #     calculate.write(self.batch_id,
-        #                        {'qty_planted': values['qty_normal'],}
-        #                        )
-        # return super(Selection, self)._compute_plannormal
-            # for a in src:
-            #     qty_planted -=  a.qty_plant
-            #
-            # if qty_planted:
-            #     self.qty_plant
+        for qtyplanted in self.batch_id:
+            qty_planted = 0
+            src = self.env['estate.nursery.batch'].search([('qty_planted', '=', True),
+                                                  ])
+            src2 = self.env['estate.nursery.selection'].search([('qty_plant','=',True)])
+        if self.selectionline_ids :
+            hasil = plante - abn
+            self.qty_normal = hasil
+            self.qty_plant = hasil
+            print hasil
+        return  True
 
     #compute selectionLine
     @api.one
@@ -406,19 +354,18 @@ class SelectionLine(models.Model):
     """Seed Selection Line"""
     _name = 'estate.nursery.selectionline'
 
-    qty = fields.Integer("Quantity Abnormal")
+    qty = fields.Integer("Quantity Abnormal",required=True)
     qty_abnormal = fields.Integer("Abnormal Quantity",required=False,
                                   readonly=True,related='selection_id.qty_abnormal',store=True)
     qty_batch = fields.Integer("DO Quantity",required=False,readonly=True,related='selection_id.qty_batch',store=True)
-    # qty_plant = fields.Integer("Plant Quantity",required=False,readonly=True,related='selection_id.qty_plant',store=True)
-    cause_id = fields.Many2one("estate.nursery.cause",string="Cause")
+    cause_id = fields.Many2one("estate.nursery.cause",string="Cause",required=True)
     comment = fields.Text("Additional Information")
     selection_id = fields.Many2one('estate.nursery.selection',"Selection",readonly=True)
     location_id = fields.Many2one('stock.location', "Bedengan",
                                   domain=[('estate_location', '=', True),
                                           ('estate_location_level', '=', '3'),
                                           ('estate_location_type', '=', 'nursery')],
-                                  help="Fill in location seed planted.",)
+                                  help="Fill in location seed planted.",required=True)
 
 
 

@@ -76,7 +76,8 @@
                         <group>
                             <group>
                                 <field name="batch_id" attrs="{'required': [('state','=','draft')],
-                                 }"/>
+                                'readonly': [('state','!=','draft')]}" domain="[('batch_id','=',batch_id)]"
+                                  invisible="1"/>
                                 <field name="qty_batch" attrs="{'required': [('state','=','draft')],
                                  'readonly': [('state','!=','draft')]}"/>
                                 <field name="qty_plant" attrs="{'required': [('state','=','draft')],
@@ -89,6 +90,7 @@
                                 <field name="selectionstage_id" />
                                 <field name="qty_normal"/>
                                 <field name="qty_abnormal"/>
+                                <field name="qty_plante" invisible="1"/>
                                 <field name="selection_date"/>
                             </group>
                         </group>
@@ -104,18 +106,26 @@
                                     <page string="Selection Information Detail">
                                         <form>
                                             <group coolspan="10">
-                                                <group groups="estate.group_agronomi">
-                                                    <field name="nursery_plandate" string="Nursery Planing Date" />
-                                                    <field name="nursery_plandatemax" string="Nursery Planing Date Maximum" />
-                                                    <field name="nursery_plandatemin" string="Nursery Planing Date Minimum" />
-                                                </group>
-
                                                 <group >
-                                                    <field name="nursery_lapseday" attrs="{'required': [('state','=','draft')],
+                                                    <field name="nursery_lapseday"
+                                                           attrs="{'required': [('state','=','draft')],
                                                     'readonly': [('state','!=','draft')]}"/>
-                                                    <field name="nursery_lapsemonth" attrs="{'required':
+                                                    <field name="nursery_lapsemonth"
+                                                           attrs="{'required':
                                                     [('state','=','draft')], 'readonly': [('state','!=','draft')]}"/>
-                                                    <field name="nursery_information" string="Nursery Date Information"/>
+                                                    <field name="nursery_information"
+                                                           string="Nursery Date Information"/>
+                                                </group>
+                                                 <group >
+                                                    <field name="nursery_plandate"
+                                                           string="Nursery Planing Date"
+                                                           groups="estate.group_agronomi"/>
+                                                    <field name="nursery_plandatemax"
+                                                           string="Nursery Planing Date Maximum"
+                                                           groups="estate.group_agronomi"/>
+                                                    <field name="nursery_plandatemin"
+                                                           string="Nursery Planing Date Minimum"
+                                                           groups="estate.group_agronomi" />
                                                 </group>
                                             </group>
                                         </form>

@@ -166,6 +166,7 @@
                                     <field name="progeny_id"/>
                                     <field name="age_seed"/> month
 
+
                                 </group>
                             </group>
                         </page>
@@ -181,7 +182,8 @@
                         <page string="Selection">
                             <field name="selection_ids" attrs="{
                             'required' : [('state', '=', 'draft')]}"
-                                   context="{'tree_view_ref' : 'estate_nursery.view_tree_selection_nursery'}"/>
+                                   context="{'tree_view_ref' : 'estate_nursery.view_tree_selection_nursery',
+                                   'default_qty_plante': qty_planted}"/>
                         </page>
                     </notebook>
                 </form>
@@ -194,7 +196,8 @@
             <field name="name">Seed Batchline</field>
             <field name="model">estate.nursery.batchline</field>
             <field name="arch" type="xml">
-                <tree string="Seed Batch List" editable='top' colors="red:selection_do_var &lt; 0 or planting_selection_var &lt; 0 or location_id &lt; 0">
+                <tree string="Seed Batch List" editable='top' colors="red:selection_do_var
+                 &lt; 0 or planting_selection_var &lt; 0 or location_id &lt; 0">
                     <field name="name"/>
                     <field name="complete_name" string="ID"/>
                     <field name="seed_qty" string="Qty DO" sum="Qty DO"/>
@@ -426,10 +429,10 @@
         -->
         <menuitem id="estate_seed_menu" name="Seed" parent="estate_nursery_menu" />
         <menuitem id="config_seed_variety" name="Seed Variety" parent="estate.estate_master_menu"
-                  action="action_list_variety" />
+                  action="action_list_variety" groups="estate.group_agronomi"/>
         <menuitem id="config_seed_progeny" name="Seed Progeny" parent="estate.estate_master_menu"
-                  action="action_list_progeny" />
+                  action="action_list_progeny" groups="estate.group_agronomi"/>
         <menuitem id="config_nursery_stage" name="Nursery Stage" parent="estate.estate_master_menu"
-                  action="action_list_stage" />
+                  action="action_list_stage" groups="estate.group_agronomi"/>
     </data>
 </openerp>
